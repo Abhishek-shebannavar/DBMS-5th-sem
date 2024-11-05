@@ -1,88 +1,153 @@
 //Write C program to demonstrate indexing and associated operations
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#define MAX 100
+#define FILENAME "records.dat"
+#define INDEXFILE "index.dat"
 
-void display(int arr[], int size) {
-    printf("Array elements: ");
-    for (int i = 0; i < size; i++) {
-        printf("%d ", arr[i]);
+typedef struct {
+    int id;
+    char name[30];
+    float score;
+} Record;
+
+typedef struct {
+    int id;
+    long position;
+} Index;
+
+void createRecord(FILE *file, FILE *indexFile) {
+    Record record;
+    printf("Enter ID: ");
+    scanf("%d", &record.id);
+    printf("Enter Name: ");
+    scanf("%s", record.name);
+    printf("Enter Score: ");
+    scanf("%f", &record.score);
+
+    fseek(file, 0, SEEK_END);
+    long position = ftell(file);
+    if (fwrite(&record, sizeof(Record), 1, file) != 1) {
+        perror("Error writing record");
+        return;
     }
-    printf("\n");
+
+    Index index;
+    index.id = record.id;
+    index.position = position;
+    if (fwrite(&index, sizeof(Index), 1, indexFile) != 1) {
+        perror("Error writing index");
+        return;
+    }
+
+    printf("Record created successfully.\n");
 }
 
-void addElement(int arr[], int size, int element) {
-    if (size < MAX) {
-        arr[size] = element;
-        size++;
-    } else {
-        printf("Array is full, cannot add more elements.\n");
-    }
-}
+void readRecord(FILE *file, FILE *indexFile) {
+    int id;
+    printf("Enter ID to read: ");
+    scanf("%d", &id);
 
-void deleteElement(int arr[], int size, int index) {
-    if (index >= 0 && index < size) {
-        for (int i = index; i < size - 1; i++) {
-            arr[i] = arr[i + 1];
+    Index index;
+    fseek(indexFile, 0, SEEK_SET);
+    while (fread(&index, sizeof(Index), 1, indexFile)) {
+        if (index.id == id) {
+            Record record;
+            fseek(file, index.position, SEEK_SET);
+            if (fread(&record, sizeof(Record), 1, file) != 1) {
+                perror("Error reading record");
+                return;
+            }
+            printf("ID: %d\nName: %s\nScore: %.2f\n", record.id, record.name, record.score);
+            return;
         }
-        size--;
-    } else {
-        printf("Invalid index, cannot delete element.\n");
     }
+    printf("Record with ID %d not found.\n", id);
 }
 
-void modifyElement(int arr[], int size, int index, int newValue) {
-    if (index >= 0 && index < size) {
-        arr[index] = newValue;
-    } else {
-        printf("Invalid index, cannot modify element.\n");
+void updateRecord(FILE *file, FILE *indexFile) {
+    int id;
+    printf("Enter ID to update: ");
+    scanf("%d", &id);
+
+    Index index;
+    fseek(indexFile, 0, SEEK_SET);
+    while (fread(&index, sizeof(Index), 1, indexFile)) {
+        if (index.id == id) {
+            Record record;
+            fseek(file, index.position, SEEK_SET);
+            if (fread(&record, sizeof(Record), 1, file) != 1) {
+                perror("Error reading record");
+                return;
+            }
+
+            printf("Enter new Name: ");
+            scanf("%s", record.name);
+            printf("Enter new Score: ");
+            scanf("%f", &record.score);
+
+            fseek(file, index.position, SEEK_SET);
+            if (fwrite(&record, sizeof(Record), 1, file) != 1) {
+                perror("Error updating record");
+                return;
+            }
+            printf("Record updated successfully.\n");
+            return;
+        }
     }
+    printf("Record with ID %d not found.\n", id);
+}
+
+void searchRecord(FILE *file) {
+    char name[30];
+    printf("Enter Name to search: ");
+    scanf("%s", name);
+
+    Record record;
+    fseek(file, 0, SEEK_SET);
+    while (fread(&record, sizeof(Record), 1, file)) {
+        if (strcmp(record.name, name) == 0) {
+            printf("ID: %d\nName: %s\nScore: %.2f\n", record.id, record.name, record.score);
+            return;
+        }
+    }
+    printf("Record with Name %s not found.\n", name);
 }
 
 int main() {
-    int arr[MAX];
-    int size = 0;
-    int choice, element, index, newValue;
+    FILE *file = fopen(FILENAME, "rb+");
+    FILE *indexFile = fopen(INDEXFILE, "rb+");
 
+    if (!file || !indexFile) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    int choice;
     while (1) {
-        printf("\nMenu:\n");
-        printf("1. Add Element\n");
-        printf("2. Delete Element\n");
-        printf("3. Modify Element\n");
-        printf("4. Display Elements\n");
-        printf("5. Exit\n");
-        printf("Enter your choice: ");
+        printf("\n1. Create Record\n2. Read Record\n3. Update Record\n4. Search Record\n5. Exit\nEnter your choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
             case 1:
-                printf("Enter element to add: ");
-                scanf("%d", &element);
-                addElement(arr, size, element);
-                size++;  // Update size after adding element
+                createRecord(file, indexFile);
                 break;
             case 2:
-                printf("Enter index to delete: ");
-                scanf("%d", &index);
-                deleteElement(arr, size, index);
-                size--;  // Update size after deleting element
+                readRecord(file, indexFile);
                 break;
             case 3:
-                printf("Enter index to modify: ");
-                scanf("%d", &index);
-                printf("Enter new value: ");
-                scanf("%d", &newValue);
-                modifyElement(arr, size, index, newValue);
+                updateRecord(file, indexFile);
                 break;
             case 4:
-                display(arr, size);
+                searchRecord(file);
                 break;
             case 5:
+                fclose(file);
+                fclose(indexFile);
                 return 0;
             default:
-                printf("Invalid choice, please try again.\n");
+                printf("Invalid choice. Please try again.\n");
         }
     }
-
-    return 0;
 }
