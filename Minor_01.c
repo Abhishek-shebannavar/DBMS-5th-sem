@@ -5,7 +5,8 @@
 int main() {
     FILE *file;
     size_t bytesRead, bytesWritten;
-    char buffer[100], choice;
+    char buffer[100];
+    int choice;
 
     // Open a file for reading and writing, create if it doesn't exist
     file = fopen("example.txt", "w+");
@@ -19,10 +20,11 @@ int main() {
         printf("1. Write to file\n");
         printf("2. Read from file\n");
         printf("3. Exit\n");
-        scanf(" %c", &choice);
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
 
         switch (choice) {
-            case '1':
+            case 1:
                 printf("Enter text to write: ");
                 scanf(" %[^\n]", buffer);
                 bytesWritten = fwrite(buffer, sizeof(char), strlen(buffer), file);
@@ -31,9 +33,10 @@ int main() {
                     fclose(file);
                     return 1;
                 }
+                fflush(file); // Ensure data is written to the file
                 break;
 
-            case '2':
+            case 2:
                 if (fseek(file, 0, SEEK_SET) != 0) {
                     perror("Error seeking in file");
                     fclose(file);
@@ -49,7 +52,7 @@ int main() {
                 printf("Read from file: %s\n", buffer);
                 break;
 
-            case '3':
+            case 3:
                 fclose(file);
                 return 0;
 
