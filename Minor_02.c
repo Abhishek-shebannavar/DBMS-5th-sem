@@ -3,151 +3,123 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define FILENAME "records.dat"
-#define INDEXFILE "index.dat"
+#define MAX_RECORDS 100
 
-typedef struct {
+struct Record {
     int id;
-    char name[30];
-    float score;
-} Record;
+    char name[50];
+    int age;
+};
 
-typedef struct {
+struct IndexEntry {
     int id;
-    long position;
-} Index;
-
-void createRecord(FILE *file, FILE *indexFile) {
-    Record record;
-    printf("Enter ID: ");
-    scanf("%d", &record.id);
-    printf("Enter Name: ");
-    scanf("%s", record.name);
-    printf("Enter Score: ");
-    scanf("%f", &record.score);
-
-    fseek(file, 0, SEEK_END);
-    long position = ftell(file);
-    if (fwrite(&record, sizeof(Record), 1, file) != 1) {
-        perror("Error writing record");
-        return;
-    }
-
-    Index index;
-    index.id = record.id;
-    index.position = position;
-    if (fwrite(&index, sizeof(Index), 1, indexFile) != 1) {
-        perror("Error writing index");
-        return;
-    }
-
-    printf("Record created successfully.\n");
-}
-
-void readRecord(FILE *file, FILE *indexFile) {
-    int id;
-    printf("Enter ID to read: ");
-    scanf("%d", &id);
-
-    Index index;
-    fseek(indexFile, 0, SEEK_SET);
-    while (fread(&index, sizeof(Index), 1, indexFile)) {
-        if (index.id == id) {
-            Record record;
-            fseek(file, index.position, SEEK_SET);
-            if (fread(&record, sizeof(Record), 1, file) != 1) {
-                perror("Error reading record");
-                return;
-            }
-            printf("ID: %d\nName: %s\nScore: %.2f\n", record.id, record.name, record.score);
-            return;
-        }
-    }
-    printf("Record with ID %d not found.\n", id);
-}
-
-void updateRecord(FILE *file, FILE *indexFile) {
-    int id;
-    printf("Enter ID to update: ");
-    scanf("%d", &id);
-
-    Index index;
-    fseek(indexFile, 0, SEEK_SET);
-    while (fread(&index, sizeof(Index), 1, indexFile)) {
-        if (index.id == id) {
-            Record record;
-            fseek(file, index.position, SEEK_SET);
-            if (fread(&record, sizeof(Record), 1, file) != 1) {
-                perror("Error reading record");
-                return;
-            }
-
-            printf("Enter new Name: ");
-            scanf("%s", record.name);
-            printf("Enter new Score: ");
-            scanf("%f", &record.score);
-
-            fseek(file, index.position, SEEK_SET);
-            if (fwrite(&record, sizeof(Record), 1, file) != 1) {
-                perror("Error updating record");
-                return;
-            }
-            printf("Record updated successfully.\n");
-            return;
-        }
-    }
-    printf("Record with ID %d not found.\n", id);
-}
-
-void searchRecord(FILE *file) {
-    char name[30];
-    printf("Enter Name to search: ");
-    scanf("%s", name);
-
-    Record record;
-    fseek(file, 0, SEEK_SET);
-    while (fread(&record, sizeof(Record), 1, file)) {
-        if (strcmp(record.name, name) == 0) {
-            printf("ID: %d\nName: %s\nScore: %.2f\n", record.id, record.name, record.score);
-            return;
-        }
-    }
-    printf("Record with Name %s not found.\n", name);
-}
+    long offset;
+};
 
 int main() {
-    FILE *file = fopen(FILENAME, "rb+");
-    FILE *indexFile = fopen(INDEXFILE, "rb+");
-
-    if (!file || !indexFile) {
-        perror("Error opening file");
-        return 1;
-    }
-
+    struct Record records[MAX_RECORDS];
+    struct IndexEntry index[MAX_RECORDS];
+    int numRecords = 0;
+    FILE *fp;
     int choice;
+
     while (1) {
-        printf("\n1. Create Record\n2. Read Record\n3. Update Record\n4. Search Record\n5. Exit\nEnter your choice: ");
+        printf("\n1. Add Record\n");
+        printf("2. Create Index\n");
+        printf("3. Search Record by ID\n");
+        printf("4. Display All Records\n");
+        printf("5. Exit\n");
+        printf("Enter your choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
             case 1:
-                createRecord(file, indexFile);
+                if (numRecords >= MAX_RECORDS) {
+                    printf("Error: Maximum number of records reached.\n");
+                    break;
+                }
+
+                printf("Enter ID: ");
+                scanf("%d", &records[numRecords].id);
+                printf("Enter Name: ");
+                scanf("%s", records[numRecords].name);
+                printf("Enter Age: ");
+                scanf("%d", &records[numRecords].age);
+
+                numRecords++;
                 break;
+
             case 2:
-                readRecord(file, indexFile);
+                fp = fopen("records.dat", "wb");
+                if (fp == NULL) {
+                    perror("Error opening file");
+                    return 1;
+                }
+
+                for (int i = 0; i < numRecords; i++) {
+                    index[i].id = records[i].id;
+                    index[i].offset = ftell(fp);
+                    fwrite(&records[i], sizeof(struct Record), 1, fp);
+                }
+
+                fclose(fp);
+                printf("Index created successfully.\n");
                 break;
+
             case 3:
-                updateRecord(file, indexFile);
+                if (numRecords == 0) {
+                    printf("Error: No records to search.\n");
+                    break;
+                }
+
+                int searchID, found = 0;
+                printf("Enter ID to search: ");
+                scanf("%d", &searchID);
+
+                for (int i = 0; i < numRecords; i++) {
+                    if (index[i].id == searchID) {
+                        fp = fopen("records.dat", "rb");
+                        if (fp == NULL) {
+                            perror("Error opening file");
+                            return 1;
+                        }
+
+                        fseek(fp, index[i].offset, SEEK_SET);
+                        fread(&records[i], sizeof(struct Record), 1, fp);
+                        fclose(fp);
+
+                        printf("Record found: ID = %d, Name = %s, Age = %d\n", records[i].id, records[i].name, records[i].age);
+                        found = 1;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    printf("Record not found.\n");
+                }
+
                 break;
+
             case 4:
-                searchRecord(file);
+                if (numRecords == 0) {
+                    printf("Error: No records to display.\n");
+                    break;
+                }
+
+                printf("ID\tName\tAge\n");
+                printf("---------------------\n");
+                for (int i = 0; i < numRecords; i++) {
+                    printf("%d\t%s\t%d\n", records[i].id, records[i].name, records[i].age);
+                }
                 break;
+
             case 5:
-                fclose(file);
-                fclose(indexFile);
                 return 0;
+
             default:
                 printf("Invalid choice. Please try again.\n");
         }
     }
+
+    return 0;
 }
