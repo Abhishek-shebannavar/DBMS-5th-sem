@@ -5,7 +5,7 @@
 int main() {
     FILE *file;
     size_t bytesRead, bytesWritten;
-    char buffer[100];
+    char buffer[100], choice;
 
     // Open a file for reading and writing, create if it doesn't exist
     file = fopen("example.txt", "w+");
@@ -14,38 +14,48 @@ int main() {
         return 1;
     }
 
-    // Write to the file
-    const char *text = "Hello, UNIX file system!";
-    bytesWritten = fwrite(text, sizeof(char), strlen(text), file);
-    if (bytesWritten < strlen(text)) {
-        perror("Error writing to file");
-        fclose(file);
-        return 1;
-    }
+    while (1) {
+        printf("\nChoose an option:\n");
+        printf("1. Write to file\n");
+        printf("2. Read from file\n");
+        printf("3. Exit\n");
+        scanf(" %c", &choice);
 
-    // Move the file pointer to the beginning
-    if (fseek(file, 0, SEEK_SET) != 0) {
-        perror("Error seeking in file");
-        fclose(file);
-        return 1;
-    }
+        switch (choice) {
+            case '1':
+                printf("Enter text to write: ");
+                scanf(" %[^\n]", buffer);
+                bytesWritten = fwrite(buffer, sizeof(char), strlen(buffer), file);
+                if (bytesWritten < strlen(buffer)) {
+                    perror("Error writing to file");
+                    fclose(file);
+                    return 1;
+                }
+                break;
 
-    // Read from the file
-    bytesRead = fread(buffer, sizeof(char), sizeof(buffer) - 1, file);
-    if (bytesRead == 0 && ferror(file)) {
-        perror("Error reading from file");
-        fclose(file);
-        return 1;
-    }
+            case '2':
+                if (fseek(file, 0, SEEK_SET) != 0) {
+                    perror("Error seeking in file");
+                    fclose(file);
+                    return 1;
+                }
+                bytesRead = fread(buffer, sizeof(char), sizeof(buffer) - 1, file);
+                if (bytesRead == 0 && ferror(file)) {
+                    perror("Error reading from file");
+                    fclose(file);
+                    return 1;
+                }
+                buffer[bytesRead] = '\0';
+                printf("Read from file: %s\n", buffer);
+                break;
 
-    // Null-terminate the buffer and print the content
-    buffer[bytesRead] = '\0';
-    printf("Read from file: %s\n", buffer);
+            case '3':
+                fclose(file);
+                return 0;
 
-    // Close the file
-    if (fclose(file) != 0) {
-        perror("Error closing file");
-        return 1;
+            default:
+                printf("Invalid choice. Please try again.\n");
+        }
     }
 
     return 0;
